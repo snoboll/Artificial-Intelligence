@@ -1,6 +1,5 @@
 import copy
 import random
-import operator
 
 EMPTY, BLACK, WHITE, OUTER = '.', 'B', 'W', '?'
 PIECES = (EMPTY, BLACK, WHITE, OUTER)
@@ -73,101 +72,83 @@ def make_move(board, player, validmove):
     board = flip_pieces(board, player, validmove)
     return board
 
-def eval_board(board):
-    #plus 1 for black, minus 1 for white
+def eval_board(board, player):
+    #plus 1 for player, -1 for opponent
     score = 0
+    opp = get_opponent(player)
     for s in squares():
-        if board[s] == BLACK:
+        if board[s] == player:
             score += 1
-        elif board[s] == WHITE:
+        elif board[s] == opp:
             score -= 1
     return score
 
-# def minimax(board, player, depth):
-#     #maximizes worst case scenarios for black for input depth
-#     moves = valid_moves(board, player)
-#     #print("valid moves for", player, moves)
-#
-#     if depth == 0 or len(moves) == 0:
-#         return (0, eval_board(board))
-#     bestmove = moves[0]
-#     copyboard = copy.copy(board)
-#     if player == BLACK:
-#         bestval = -64
-#         for move in moves:
-#             temp_board = make_move(copyboard, player, move)
-#             val = minimax(temp_board, get_opponent(player), depth-1)[1]
-#             if val > bestval:
-#                 bestval = val
-#                 bestmove = move
-#     elif player == WHITE:
-#         bestval = 64
-#         for move in moves:
-#             temp_board = make_move(copyboard, player, move)
-#             val = minimax(temp_board, get_opponent(player), depth-1)[1]
-#             if val < bestval:
-#                 bestval = val
-#                 bestmove = move
-#     return (bestmove, bestval)
+def alphabeta(board, player, alpha, beta, depth, algo, AI):
 
-def alphabeta(board, player, alpha, beta, depth):
     moves = valid_moves(board, player)
     if depth == 0 or len(moves) == 0:
-        return (0, eval_board(board))
+        return (0, eval_board(board, AI))
     m = moves[0]
 
-    if player == BLACK:
+    if algo == "maxi":#maximizing
         val = -64
         for move in moves:
-            if alpha > beta:
-                break
             next_board = make_move(copy.copy(board), player, move)
-            val = max(val, alphabeta(next_board, get_opponent(player), alpha, beta, depth-1)[1])
+            val = max(val, alphabeta(next_board, get_opponent(player), alpha, beta, depth-1, "mini", AI)[1])
             if val > alpha:
                 alpha = val
                 m = move
-
-        return m, alpha
-    else:
-        val = 64
-        for move in moves:
             if alpha > beta:
                 break
+        return m, val
+    else:#minimizing
+        val = 64
+        for move in moves:
             next_board = make_move(copy.copy(board), player, move)
-            val = min(val, alphabeta(next_board, get_opponent(player), alpha, beta, depth-1)[1])
+            val = min(val, alphabeta(next_board, get_opponent(player), alpha, beta, depth-1, "maxi", AI)[1])
             if val < beta:
                 beta = val
                 m = move
-
-        return m, beta
+            if alpha > beta:
+                break
+        return m, val
 
 #GAME LOOP
+invcount = 0
 whitescore = 0
 blackscore = 0
+tie = 0
 alpha_0 = -64
 beta_0 = 64
 dep = 3
+player = BLACK
 for i in range(100):
     board = initial_board()
-    player = BLACK
     while True:
         valmoves = valid_moves(board, player)
-        if len(valmoves) == 0:
+        if invcount == 2:
             print(print_board(board))
             print("GAME OVER")
+            invcount = 0
             break
+        if len(valmoves) == 0:
+            invcount += 1
         elif player == BLACK:
-            #print(print_board(board))
-            cpu_move = alphabeta(board, player, alpha_0, beta_0, dep)[0]
-            board = make_move(board, player, cpu_move)
-            player = WHITE
+            move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
+            #move = random.choice(valmoves)
+            board = make_move(board, player, move)
+            invcount = 0
         elif player == WHITE:
-            randmove = random.choice(valmoves)
-            board = make_move(board, player, randmove)
-            player = BLACK
-    if eval_board(board) < 0:
+            #move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
+            move = random.choice(valmoves)
+            board = make_move(board, player, move)
+            invcount = 0
+        player = get_opponent(player)
+    if eval_board(board, WHITE) > 0:
         whitescore += 1
-    elif eval_board(board) > 0:
+    elif eval_board(board, BLACK) > 0:
         blackscore += 1
+    else:
+        tie += 1
 
-print("white:", whitescore, "black:", blackscore)
+print("white:", whitescore, "black:", blackscore, "tie:", tie)
