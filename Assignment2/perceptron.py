@@ -19,8 +19,9 @@ Xeye = [Xe[i] + [ye[i]] for i, x in enumerate(Xe)]#class 0
 Xfyf = [Xf[i] + [yf[i]] for i, x in enumerate(Xf)]#class 1
 allpoints = Xeye + Xfyf
 score = 0
+#[1, 73462, 1362] dot [1,1,1] = 21736
 
-
+errcount = -1
 for j in range(30):
     allpoints_copy = allpoints.copy()
     randint = random.randint(0,29)
@@ -38,13 +39,20 @@ for j in range(30):
             w[1] = w[1] + x[1]*d*rate
             w[2] = w[2] + x[2]*d*rate
 
+            if not d == 0:
+                errcount += 1
+
+        if errcount == 0:
+            break
+            
+    errcount = 0
     pred = 1 if np.dot(p, w) > 0 else 0
 
     if (p_gold == pred):
         score += 1
+
 print(score)
 
-plt.plot(p[1], p[2], 'go')
 x = np.linspace(10000, 80000, 1000)
 y = -(w[0] + w[1]*x)/w[2]
 plt.plot(x, y)
