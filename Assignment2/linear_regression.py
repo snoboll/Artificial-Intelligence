@@ -37,7 +37,8 @@ if __name__ == '__main__':
 
         w = [0.0] * (len(X_copy))
         w = gd.batch_descent(X_copy, y_copy, alpha, w)
-
+        print(X_copy)
+        print(y_copy)
         #restoring
         w = [w[i] * maxima[-1] / maxima[i] for i in range(len(w))]
         x_fig = [X_copy[i][1] * maxima_X[1] for i in range(len(X_copy))]

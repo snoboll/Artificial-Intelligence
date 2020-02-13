@@ -9,6 +9,14 @@ Xe, ye = datasets.load_tsv(
 Xf, yf = datasets.load_tsv(
     'https://raw.githubusercontent.com/pnugues/ilppp/master/programs/ch04/salammbo/salammbo_a_fr.tsv')
 
+def sigmoid(z):
+    return 1.0 / (1 + np.exp(-z))
+
+def predict(xy, w):
+    #[1, 38674, 7364] dot []
+    z = np.dot(xy, w)
+    return sigmoid(z)
+
 plt.plot([x[1] for x in Xe], ye, 'ro')
 plt.plot([x[1] for x in Xf], yf, 'bo')
 
@@ -31,10 +39,11 @@ for j in range(30):
     #eng = 0, fra = 1
     for _ in range(1000):
         for i, x in enumerate(allpoints_copy):
-            pred = 1 if np.dot(x, w) > 0 else 0
+            pred_prob = predict(x, w)
+            #pred = 1 if pred_prob >= 0.5 else 0
             gold = goldlist[i]
 
-            d = gold-pred
+            d = gold-pred_prob
             w[0] = w[0] + x[0]*d*rate
             w[1] = w[1] + x[1]*d*rate
             w[2] = w[2] + x[2]*d*rate
@@ -52,11 +61,10 @@ for j in range(30):
         score += 1
 
 print(score)
-
-x = np.linspace(10000, 80000, 1000)
 print(w)
 #[-5, -2600.0, 39579.0]
 
+x = np.linspace(10000, 80000, 1000)
 #w[0] + w[1]x + w[2]y = 0 ==>
 y = -(w[0] + w[1]*x)/w[2]
 plt.plot(x, y)
