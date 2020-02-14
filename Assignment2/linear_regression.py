@@ -19,7 +19,7 @@ if __name__ == '__main__':
     plt.plot([x[1] for x in Xe], ye, 'ro')
     plt.plot([x[1] for x in Xf], yf, 'bo')
 
-    for i in range(30):
+    for i in range(1):
         X_copy = X.copy()
         y_copy = y.copy()
         goldlist = [0]*15 + [1]*15

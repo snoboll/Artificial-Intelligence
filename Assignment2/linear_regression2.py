@@ -1,38 +1,57 @@
-#perceptron
+#linear regression
 import matplotlib.pyplot as plt
-import datasets, random
-import vector
+import datasets
 import numpy as np
+import gradient_descent as gd
 
-Xe, ye = datasets.load_tsv(
-    'https://raw.githubusercontent.com/pnugues/ilppp/master/programs/ch04/salammbo/salammbo_a_en.tsv')
-Xf, yf = datasets.load_tsv(
-    'https://raw.githubusercontent.com/pnugues/ilppp/master/programs/ch04/salammbo/salammbo_a_fr.tsv')
+def normalize(X, y):
+    X_max = [max(x[i] for x in X) for i in range(len(X[0]))]
+    X_norm = [[x[i]/X_max[i] for i in range(len(X[0]))] for x in X]
 
-plt.plot([x[1] for x in Xe], ye, 'ro')
-plt.plot([x[1] for x in Xf], yf, 'bo')
+    y_max = max(y)
+    y_norm = [yi / y_max for yi in y]
 
-rate = 0.1
-w = [1, 1, 1]
+    return X_norm, y_norm, X_max, y_max
 
-Xeye = [Xe[i] + [ye[i]] for i, x in enumerate(Xe)]#class 0
-Xfyf = [Xf[i] + [yf[i]] for i, x in enumerate(Xf)]#class 1
-allpoints = Xeye + Xfyf
-#[1, 73462, 1362] dot [1,1,1] = 21736
-
-for x in allpoints:
-    err = x[2] + (w[0]+w[1]*x[1])/w[2]
-    d = 1 if err>0 else -1
-    #w += np.multiply(w, np.multiply(x, d*rate))
-    w[0] = w[0] + x[0]*d*rate
-    w[1] = w[1] + x[1]*d*rate
-    w[2] = w[2] + x[2]*d*rate
+def my_descent(X, y, rate, w):
 
 
-x = np.linspace(10000, 80000, 1000)
-print(w)
 
-#w[0] + w[1]x + w[2]y = 0 ==>
-y = -(w[0] + w[1]*x)/w[2]
-plt.plot(x, y)
-plt.show()
+    return
+    
+if __name__ == '__main__':
+    #loading and copying data
+    Xe, ye = datasets.load_tsv(
+        'https://raw.githubusercontent.com/pnugues/ilppp/master/programs/ch04/salammbo/salammbo_a_en.tsv')
+    Xf, yf = datasets.load_tsv(
+        'https://raw.githubusercontent.com/pnugues/ilppp/master/programs/ch04/salammbo/salammbo_a_fr.tsv')
+    Xeye = [Xe[i] + [ye[i]] for i, x in enumerate(Xe)]#class 0
+    Xfyf = [Xf[i] + [yf[i]] for i, x in enumerate(Xf)]#class 1
+    X = Xe + Xf
+    y = ye + yf
+
+    X_copy = X.copy()
+    y_copy = y.copy()
+
+    #normalizing
+    X_norm, y_norm, X_max, y_max = normalize(X_copy, y_copy)
+    Xy_max = X_max + [y_max]
+    rate = 1
+
+    #performing the descent
+    w = [0] * (len(X_copy))
+    w = gd.batch_descent(X_norm, y_norm, rate, w)
+
+    #adjusting normalized weights to original input
+    w = [w[i] * Xy_max[-1] / Xy_max[i] for i in range(len(w))]
+
+    #setting up values in X and y for plotting
+    x_fig = [x[1] for x in X_copy]
+    y_fig = y_copy
+
+    plt.plot([x[1] for x in Xe], ye, 'ro')
+    plt.plot([x[1] for x in Xf], yf, 'bo')
+    plt.plot([min(x_fig), max(x_fig)],
+         [np.dot([1, min(x_fig)], w),
+          np.dot([1, max(x_fig)], w)])
+    plt.show()
