@@ -1,8 +1,7 @@
-#perceptron
 import matplotlib.pyplot as plt
 import datasets, random
-import vector
 import numpy as np
+import matplotlib.patches as mpatches
 
 Xe, ye = datasets.load_tsv(
     'https://raw.githubusercontent.com/pnugues/ilppp/master/programs/ch04/salammbo/salammbo_a_en.tsv')
@@ -13,12 +12,8 @@ def sigmoid(z):
     return 1.0 / (1 + np.exp(-z))
 
 def predict(xy, w):
-    #[1, 38674, 7364] dot []
     z = np.dot(xy, w)
     return sigmoid(z)
-
-plt.plot([x[1] for x in Xe], ye, 'ro')
-plt.plot([x[1] for x in Xf], yf, 'bo')
 
 rate = 1
 w = [1, 1, 1]
@@ -27,7 +22,6 @@ Xeye = [Xe[i] + [ye[i]] for i, x in enumerate(Xe)]#class 0
 Xfyf = [Xf[i] + [yf[i]] for i, x in enumerate(Xf)]#class 1
 allpoints = Xeye + Xfyf
 score = 0
-#[1, 73462, 1362] dot [1,1,1] = 21736
 
 errcount = -1
 for j in range(30):
@@ -62,10 +56,18 @@ for j in range(30):
 
 print(score)
 print(w)
-#[-5, -2600.0, 39579.0]
 
 x = np.linspace(10000, 80000, 1000)
-#w[0] + w[1]x + w[2]y = 0 ==>
 y = -(w[0] + w[1]*x)/w[2]
 plt.plot(x, y)
+
+plt.plot([x[1] for x in Xe], ye, 'ro')
+plt.plot([x[1] for x in Xf], yf, 'bo')
+red_patch = mpatches.Patch(color='red', label='En')
+blue_patch = mpatches.Patch(color='blue', label='Fr')
+plt.legend(handles=[red_patch, blue_patch])
+plt.xlabel("Letters in chapter")
+plt.ylabel("Number of a:s in chapter")
+plt.title("Logistic regression")
+
 plt.show()
