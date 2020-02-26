@@ -15,7 +15,7 @@ def stoch_desc(x, y, rate, w):
         for i in shuf:
             w[0] = w[0] - rate*2*(w[0] + w[1]*x[i] - y[i])
             w[1] = w[1] - rate*2*x[i]*(w[0] + w[1]*x[i] - y[i])
-    return  w
+    return w
 
 def batch_desc(x, y, rate, w):
     for epoch in range(1000):
@@ -50,10 +50,11 @@ if __name__ == '__main__':
     x_max, x_norm = easynorm(x_copy)
     y_max, y_norm = easynorm(y_copy)
 
-    #performing the descent
+    #performing the descent, choosing either batch or stoch
     rate = 0.1
     w = [0, 0]
-    w = batch_desc(x_norm, y_norm, rate, w)
+    #w = batch_desc(x_norm, y_norm, rate, w)
+    w = stoch_desc(x_norm, y_norm, rate, w)
 
     #adjusting normalized weights to original input
     w[1] = w[1] * y_max/x_max

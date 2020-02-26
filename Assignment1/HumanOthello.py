@@ -45,7 +45,6 @@ def get_opponent(player):
     return BLACK if player == WHITE else WHITE
 
 def valid_moves(board, player):
-    #returns a list of valid coordinates for input player
     validmoves = []
     playercoords = [i for i, x in enumerate(board) if x == player]
 
@@ -61,7 +60,6 @@ def valid_moves(board, player):
     return validmoves
 
 def flip_pieces(board, player, move):
-    #flips_pieces of valid input move
     tiles_to_flip = []
     for dir in DIRECTIONS:
         pos = move
@@ -95,18 +93,6 @@ def eval_board(board, player):
             eval -= WEIGHTS[s]
     return eval
 
-def eval_vanilla(board, player):
-    #plus 1 for player, -1 for opponent
-    eval = 0
-    opp = get_opponent(player)
-
-    for s in squares():
-        if board[s] == player:
-            eval += 1
-        elif board[s] == opp:
-            eval -= 1
-    return eval
-
 def board_score(board, player):
     score = 0
     opp = get_opponent(player)
@@ -118,7 +104,6 @@ def board_score(board, player):
     return score
 
 def alphabeta(board, player, alpha, beta, depth, algo, AI):
-
     moves = valid_moves(board, player)
     if depth == 0 or len(moves) == 0:
         return (0, eval_board(board, AI))
@@ -147,59 +132,52 @@ def alphabeta(board, player, alpha, beta, depth, algo, AI):
                 break
         return m, val
 
-#GAME LOOP
+#initial parameters
 invcount = 0
-whitescore = 0
-blackscore = 0
-tie = 0
 alpha_0 = -64
 beta_0 = 64
 player = BLACK
 dep = int(input("Max time per move of depths:\n1: 0.002s\n2: 0.013s\n3: 0.14s\n4: 0.76s\n5: 6.7s\nChoose depth:\n"))
 
-AI = input("B or W\n")
-while not (AI == BLACK or AI == WHITE):
-    AI = input("Invalid entry. Enter B or W")
+#color selection
+human = input("Play as B or W?\n")
+while not (human == BLACK or human == WHITE):
+    human = input("Invalid entry. Enter B or W")
 
-for i in range(100):
-    board = initial_board()
-    while True:
-        valmoves = valid_moves(board, player)
-        if invcount == 2:
-            print(print_board(board))
-            print("GAME OVER")
-            invcount = 0
-            break
-        if len(valmoves) == 0:
-            invcount += 1
-        elif player == BLACK:
-            if AI == BLACK:
-                move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
-            else:
-                move = random.choice(valmoves)
-            board = make_move(board, player, move)
-            invcount = 0
-        elif player == WHITE:
-            if AI == WHITE:
-                move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
-            else:
-                move = random.choice(valmoves)
-            board = make_move(board, player, move)
-            invcount = 0
-        player = get_opponent(player)
-    if board_score(board, WHITE) > 0:
-        whitescore += 1
-    elif board_score(board, BLACK) > 0:
-        blackscore += 1
-    else:
-        tie += 1
+AI = get_opponent(human)
+board = initial_board()
 
-    print("white:", whitescore, "black:", blackscore, "tie:", tie)
-    """
-    depth max move times:
-    1: 0.00186s
-    2: 0.01317s
-    3: 0.1387s
-    4: 0.7616s
-    5: 6.661s
-    """
+#GAME LOOP
+while True:
+    valmoves = valid_moves(board, player)
+    if invcount == 2:
+        print(print_board(board))
+        print("GAME OVER")
+        break
+    if len(valmoves) == 0:
+        invcount += 1
+    elif player == human:
+        print("Valid moves: ", valmoves, "\n")
+        coord = input("Make a move: \n")
+        while(int(coord) not in valmoves):
+            coord = input("Invalid move, try again: \n")
+        move = int(coord)
+        board = make_move(board, human, move)
+        print("Move made:", move)
+        invcount = 0
+    elif player == AI:
+        move = alphabeta(board, AI, alpha_0, beta_0, dep, "maxi", AI)[0]
+        board = make_move(board, AI, move)
+        print("AI move made:", move)
+        invcount = 0
+    print(print_board(board))
+    player = get_opponent(player)
+
+winner = WHITE if board_score(board, WHITE) > 0 else BLACK
+print(print_board(board))
+print("You played as", human + ", AI played as " + AI)
+
+if board_score(board, human) == 0:
+    print("tie")
+else:
+    print(winner + " wins!")
