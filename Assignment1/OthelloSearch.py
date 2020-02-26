@@ -1,5 +1,6 @@
 import copy
 import random
+import time
 
 EMPTY, BLACK, WHITE, OUTER = '.', 'B', 'W', '?'
 PIECES = (EMPTY, BLACK, WHITE, OUTER)
@@ -120,7 +121,7 @@ def alphabeta(board, player, alpha, beta, depth, algo, AI):
             if val > alpha:
                 alpha = val
                 m = move
-            if alpha > beta:
+            if alpha >= beta:
                 break
         return m, val
     else:#minimizing
@@ -131,7 +132,7 @@ def alphabeta(board, player, alpha, beta, depth, algo, AI):
             if val < beta:
                 beta = val
                 m = move
-            if alpha > beta:
+            if alpha >= beta:
                 break
         return m, val
 
@@ -142,8 +143,13 @@ blackscore = 0
 tie = 0
 alpha_0 = -64
 beta_0 = 64
-dep = 3
 player = BLACK
+dep = int(input("Max time per move of depths:\n1: 0.002s\n2: 0.013s\n3: 0.14s\n4: 0.76s\n5: 6.7s\nChoose depth:\n"))
+
+AI = input("B or W\n")
+while not (AI == BLACK or AI == WHITE):
+    AI = input("Invalid entry. Enter B or W")
+
 for i in range(20):
     board = initial_board()
     while True:
@@ -156,13 +162,17 @@ for i in range(20):
         if len(valmoves) == 0:
             invcount += 1
         elif player == BLACK:
-            move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
-            #move = random.choice(valmoves)
+            if AI == BLACK:
+                move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
+            else:
+                move = random.choice(valmoves)
             board = make_move(board, player, move)
             invcount = 0
         elif player == WHITE:
-            #move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
-            move = random.choice(valmoves)
+            if AI == WHITE:
+                move = alphabeta(board, player, alpha_0, beta_0, dep, "maxi", player)[0]
+            else:
+                move = random.choice(valmoves)
             board = make_move(board, player, move)
             invcount = 0
         player = get_opponent(player)
@@ -174,3 +184,11 @@ for i in range(20):
         tie += 1
 
     print("white:", whitescore, "black:", blackscore, "tie:", tie)
+    """
+    depth max move times:
+    1: 0.00186s
+    2: 0.01317s
+    3: 0.1387s
+    4: 0.7616s
+    5: 6.661s
+    """
