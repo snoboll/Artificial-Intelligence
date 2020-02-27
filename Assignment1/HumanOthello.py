@@ -146,6 +146,7 @@ while not (human == BLACK or human == WHITE):
 
 AI = get_opponent(human)
 board = initial_board()
+print(print_board(board))
 
 #GAME LOOP
 while True:
@@ -158,11 +159,19 @@ while True:
         invcount += 1
     elif player == human:
         print("Valid moves: ", valmoves, "\n")
-        coord = input("Make a move: \n")
-        while(int(coord) not in valmoves):
-            coord = input("Invalid move, try again: \n")
-        move = int(coord)
-        board = make_move(board, human, move)
+        move = input("Make a move: \n")
+
+        while True:
+            try:
+                int_move = int(move)
+            except:
+                print("Invalid input try again")
+                print("Valid moves: ", valmoves, "\n")
+                move = input("Make a move: \n")
+            else:
+                if int_move in valmoves:
+                    break
+        board = make_move(board, human, int_move)
         print("Move made:", move)
         invcount = 0
     elif player == AI:
