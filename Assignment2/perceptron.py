@@ -13,6 +13,7 @@ w = [1, 1, 1]
 
 Xeye = [Xe[i] + [ye[i]] for i, x in enumerate(Xe)]#class 0
 Xfyf = [Xf[i] + [yf[i]] for i, x in enumerate(Xf)]#class 1
+print(Xeye)
 allpoints = Xeye + Xfyf
 score = 0
 
@@ -37,7 +38,6 @@ for j in range(30):
                 errcount += 1
         if errcount == 0:
             break
-        print(w)
     errcount = 0
     pred = 1 if np.dot(p, w) > 0 else 0
     if (p_gold == pred):
