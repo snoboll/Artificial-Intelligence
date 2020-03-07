@@ -23,6 +23,8 @@ public class Localizer implements EstimatorInterface {
 
     private double[][] transitionMatrix;
     private double[][] observationVectors;
+    private double[][] f;
+
 
     private static int[][] offset1 = { { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 }, { 0, 1 }, { 1, -1 }, { 1, 0 }, { 1, 1 } };
     private static int[][] offset2 = { { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 },
@@ -45,7 +47,8 @@ public class Localizer implements EstimatorInterface {
         observationVectors = new double[rows*cols+1][rows*cols];
         makeO();
 
-        printMat(observationVectors, rows*cols+1, rows*cols);
+        f = new double[rows*cols*head][1];
+        initiate_f();
     }
 
     public int getNumRows() {
@@ -90,49 +93,50 @@ public class Localizer implements EstimatorInterface {
                 for (int r = 0; r < rows; r++){
                     for (int c = 0; c < cols; c++){
                         observationVectors[rr*cols + rc][r*rows + c] = Oprob(rr, rc, r, c);
-
                     }
                 }
-                // setting up the nothing reading values for each position
+
+            }
+        }
+        //setting up nothing reading values.
+        for (int rr = 0; rr < rows; rr++){
+            for (int rc = 0; rc < cols; rc++){
                 observationVectors[rows*cols][rr*cols + rc] = nothingProb(rr, rc);
             }
         }
+
+
     }
 
+    /*
+     * returns the probabilty of nothing reading at position r, c.
+     */
     private double nothingProb(int r, int c){
-        double ret = 0.9;
-        for (int i = 0; i<rows; i++){
-            for(int j = 0; j<cols; j++){
-                if(Math.sqrt(Math.pow(r - i, 2) + Math.pow(c - j, 2)) < 1){
-                    ret-=0.1;
-                }else if(Math.sqrt(Math.pow(r - i, 2) + Math.pow(c - j, 2)) < 2){
-                    ret-=0.05;
-                }else if(Math.sqrt(Math.pow(r - r, 2) + Math.pow(c - j, 2)) < 3){
-                    ret-=0.025;
-                }
-            }
+        double probsum = 1;
+        for(int i = 0; i<rows*cols; i++){
+            probsum -= observationVectors[i][r*cols + c];
         }
-        return ret;
+        return probsum;
     }
 
     /*
      * takes vector at index row as input and returns it on matrix format for matmultiplication
      * with T matrix.
      */
-    private double[][] OVectToMat(int row){
+    private double[][] OVectToMat(int row) {
         int vec_ind = 0;
         int count = 0;
         double[] obsvect = observationVectors[row];
-        double[][] ret = new double[rows*4][cols*4];
+        double[][] ret = new double[rows * cols * 4][rows * cols * 4];
         for (int i = 0; i < rows * cols * 4; i++) {
             for (int j = 0; j < rows * cols * 4; j++) {
-                if(i == j){
+                if (i == j) {
                     ret[i][j] = obsvect[vec_ind];
                     count++;
                 } else {
                     ret[i][j] = 0;
                 }
-                if(count >= 4){
+                if (count >= 4) {
                     vec_ind++;
                     count = 0;
                 }
@@ -140,6 +144,9 @@ public class Localizer implements EstimatorInterface {
         }
         return ret;
     }
+
+
+
     /*
      * returns the probability of finding the robot at r,c given the input reading rr, rc
      * cannot be used for outbounds calculations.
@@ -229,6 +236,10 @@ public class Localizer implements EstimatorInterface {
      * positions (x, y)).
      */
     public double getOrXY( int rX, int rY, int x, int y, int h) {
+        if(rX == -1 || rY == -1){
+            //nothingreadings
+            return observationVectors[rows*cols][x*rows + y];
+        }
         return observationVectors[rX*cols + rY][x*cols + y];
     }
 
@@ -236,7 +247,6 @@ public class Localizer implements EstimatorInterface {
     public double getTProb(int x, int y, int h, int nX, int nY, int nH) {
         return transitionMatrix[x*rows*head + y*head + h][nX*rows*head + nY*head + nH];
     }
-
 
     /*
      * returns the currently known true position i.e., after one simulation step
@@ -288,13 +298,47 @@ public class Localizer implements EstimatorInterface {
         return ret;
     }
 
+    private void initiate_f(){
+        for(int i = 0; i < rows*cols*head; i++){
+            f[i][0] = (double)1/(rows*cols*head);
+        }
+    }
+
+    private void getNext_f(){
+        int[] read_pos = getCurrentReading();
+        int index;
+        if(read_pos == null){
+            index = rows*cols;
+        }else{
+            index = read_pos[0]*cols + read_pos[1];
+        }
+        double[][] O = OVectToMat(index);
+        double[][] T_trans = transposeMat(transitionMatrix);
+        double[][] OT = matMult(O, T_trans);
+        f = matMult(OT, f);
+    }
+
+    private void normalize_f(){
+        double sum = 0;
+        for(int i = 0; i<f.length; i++){
+            sum += f[i][0];
+        }
+        System.out.println(sum);
+        for(int i = 0; i<f.length; i++){
+            f[i][0] /= sum;
+        }
+    }
     /*
      * returns the currently estimated (summed) probability for the robot to be in position
      * (x,y) in the grid. The different headings are not considered, as it makes the
      * view somewhat unclear.
      */
     public double getCurrentProb(int x, int y) {
-        double ret = 0.0;
+        // f_t+1 = alpha * O_t+1 * T_transp * f_t
+        double ret = 0;
+        for(int i = x*head + y; i < x*head + y + head; i++){
+            ret += f[i][0];
+        }
         return ret;
     }
 
@@ -358,20 +402,48 @@ public class Localizer implements EstimatorInterface {
         }
     }
 
-    private void printMat(double[][] mat, int xdim, int ydim){
-        for(int i = 0; i < xdim; i++){
-            for(int j = 0; j<ydim; j++){
-                System.out.print(mat[i][j] + " ");
+    private void printMat(double[][] A){
+        for(int i = 0; i < A.length; i++){
+            for(int j = 0; j<A[0].length; j++){
+                System.out.print(A[i][j] + " ");
             }
             System.out.println();
         }
     }
+
+    private double[][] transposeMat(double[][] A){
+        double[][] ret = new double[A[0].length][A.length];
+        for (int i = 0; i < A.length; i++)
+            for (int j = 0; j < A[0].length; j++)
+                ret[j][i] = A[i][j];
+        return ret;
+    }
+
+    public static double[][] matMult(double[][] A, double[][] B) {
+        int r1 = A.length;
+        int c1 = B.length;
+        int c2 = B[0].length;
+        double[][] ret = new double[r1][c2];
+        for(int i = 0; i < r1; i++) {
+            for (int j = 0; j < c2; j++) {
+                for (int k = 0; k < c1; k++) {
+                    ret[i][j] += A[i][k] * B[k][j];
+                }
+            }
+        }
+        return ret;
+    }
+
     /*
      * should trigger one step of the estimation, i.e., true position, sensor reading and
      * the probability distribution for the position estimate should be updated one step
      * after the method has been called once.
      */
     public void update() {
+
         moveRobot();
+        normalize_f();
+
+        getNext_f();
     }
 }
