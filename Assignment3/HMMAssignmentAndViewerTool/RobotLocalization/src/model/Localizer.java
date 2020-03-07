@@ -35,15 +35,17 @@ public class Localizer implements EstimatorInterface {
         this.head = head;
 
         row = 0;
-        col = 2;
+        col = 0;
 
         currentHeading = EAST;
 
         transitionMatrix = new double[rows*cols*head][rows*cols*head];
         makeT();
 
-        observationVectors = new double[rows*cols+1][rows*cols+1];
+        observationVectors = new double[rows*cols+1][rows*cols];
+        makeO();
 
+        printMat(observationVectors, rows*cols+1, rows*cols);
     }
 
     public int getNumRows() {
@@ -59,17 +61,17 @@ public class Localizer implements EstimatorInterface {
     }
 
 
-
-    /* makes the transitionMatrix
+    /*
+     * makes the transitionMatrix
      */
     public void makeT(){
         for (int frow = 0; frow < rows; frow++){
             for (int fcol = 0; fcol < cols; fcol++){
                 for (int fhead = 0; fhead < head; fhead++){
-                    for (int trow = 0; trow < cols; trow++){
-                        for (int tcol = 0; tcol < rows; tcol++){
+                    for (int trow = 0; trow < rows; trow++){
+                        for (int tcol = 0; tcol < cols; tcol++){
                             for (int thead = 0; thead < head; thead++){
-                                transitionMatrix[frow*rows*head+fcol*head+fhead][trow*rows*head+tcol*head+fhead] = Tprob(frow, fcol, fhead, trow, tcol, thead);
+                                transitionMatrix[frow*rows*head+fcol*head+fhead][trow*rows*head+tcol*head+thead] = Tprob(frow, fcol, fhead, trow, tcol, thead);
                             }
                         }
                     }
@@ -79,40 +81,123 @@ public class Localizer implements EstimatorInterface {
     }
 
     /*
+     * makes the observationMatrix
+     */
+    private void makeO(){
+        // rr = reading row, rc = reading col
+        for (int rr = 0; rr < rows; rr++){
+            for (int rc = 0; rc < cols; rc++){
+                for (int r = 0; r < rows; r++){
+                    for (int c = 0; c < cols; c++){
+                        observationVectors[rr*cols + rc][r*rows + c] = Oprob(rr, rc, r, c);
+
+                    }
+                }
+                // setting up the nothing reading values for each position
+                observationVectors[rows*cols][rr*cols + rc] = nothingProb(rr, rc);
+            }
+        }
+    }
+
+    private double nothingProb(int r, int c){
+        double ret = 0.9;
+        for (int i = 0; i<rows; i++){
+            for(int j = 0; j<cols; j++){
+                if(Math.sqrt(Math.pow(r - i, 2) + Math.pow(c - j, 2)) < 1){
+                    ret-=0.1;
+                }else if(Math.sqrt(Math.pow(r - i, 2) + Math.pow(c - j, 2)) < 2){
+                    ret-=0.05;
+                }else if(Math.sqrt(Math.pow(r - r, 2) + Math.pow(c - j, 2)) < 3){
+                    ret-=0.025;
+                }
+            }
+        }
+        return ret;
+    }
+
+    /*
+     * takes vector at index row as input and returns it on matrix format for matmultiplication
+     * with T matrix.
+     */
+    private double[][] OVectToMat(int row){
+        int vec_ind = 0;
+        int count = 0;
+        double[] obsvect = observationVectors[row];
+        double[][] ret = new double[rows*4][cols*4];
+        for (int i = 0; i < rows * cols * 4; i++) {
+            for (int j = 0; j < rows * cols * 4; j++) {
+                if(i == j){
+                    ret[i][j] = obsvect[vec_ind];
+                    count++;
+                } else {
+                    ret[i][j] = 0;
+                }
+                if(count >= 4){
+                    vec_ind++;
+                    count = 0;
+                }
+            }
+        }
+        return ret;
+    }
+    /*
+     * returns the probability of finding the robot at r,c given the input reading rr, rc
+     * cannot be used for outbounds calculations.
+     */
+    private double Oprob(int rr, int rc, int r, int c) {
+        if (rr == r && rc == c) {
+            return 0.1;
+        } else if (Math.sqrt(Math.pow(rr - r, 2) + Math.pow(rc - c, 2)) < 2) {
+            return 0.05;
+        } else if (Math.sqrt(Math.pow(rr - r, 2) + Math.pow(rc - c, 2)) < 3) {
+            return 0.025;
+        } else {
+            return 0;
+        }
+    }
+    /*
      * returns the probability of transition from state <x, y, h> to <nX, nY, nH>.
      * Used for populating transitionMatrix.
      */
-    public double Tprob( int x, int y, int h, int nX, int nY, int nH) {
+    private double Tprob( int x, int y, int h, int nX, int nY, int nH) {
         ArrayList<Integer> posDirs = possibleDirections(x, y);
-        ArrayList<Integer> nextPosDirs = possibleDirections(nX, nY);
-
+        //move not valid --> 0 prob
+        if (dirOfMove(x, y, nX, nY) != nH) {
+            return 0;
+        }
 
         //No walls nearby
-        if(posDirs.size() == 4){
-            if(h == nH){
+        if (posDirs.size() == 4) {
+            if (h == nH) {
                 return 0.7;
-            }else{
+            } else {
                 return 0.1;
             }
         }
-        else if(posDirs.size() == 3){
-            if(!posDirs.contains(h)){
-                return 0.33;
-            }else{
-                if(h == nH){
+        //1 wall nearby
+        else if (posDirs.size() == 3) {
+            if (!posDirs.contains(h)) {
+                if (dirOfMove(x, y, nX, nY) == nH) {
+                    return 0.33;
+                }
+            } else {
+                if (h == nH) {
                     return 0.7;
-                }else{
+                } else {
                     return 0.15;
                 }
             }
         }
-        else if(posDirs.size() == 2){
-            if(!posDirs.contains(h)){
-
-            }else{
-                if(h == nH){
+        //corner
+        else if (posDirs.size() == 2) {
+            if (!posDirs.contains(h)) {
+                if (dirOfMove(x, y, nX, nY) == nH) {
+                    return 0.5;
+                }
+            } else {
+                if (h == nH) {
                     return 0.7;
-                }else{
+                } else {
                     return 0.3;
                 }
             }
@@ -121,13 +206,30 @@ public class Localizer implements EstimatorInterface {
     }
 
     /*
+     * returns the direction of th input move and -1 if not possible move.
+     */
+    private int dirOfMove(int r, int c, int nr, int nc){
+        if(r+1 == nr && c == nc){
+            return SOUTH;
+        }else if(r-1 == nr && c == nc){
+            return NORTH;
+        }else if(c+1 == nc && r == nr){
+            return EAST;
+        }else if(c-1 == nc && r == nr){
+            return WEST;
+        }
+        return -1;
+    }
+
+
+    /*
      * returns the probability entry of the sensor matrices O to get reading r corresponding
      * to position (rX, rY) when actually in position (x, y) (note that you have to take
      * care of potentially necessary transformations from states i = <x, y, h> to
      * positions (x, y)).
      */
     public double getOrXY( int rX, int rY, int x, int y, int h) {
-        return 0.1;
+        return observationVectors[rX*cols + rY][x*cols + y];
     }
 
     @Override
@@ -205,10 +307,10 @@ public class Localizer implements EstimatorInterface {
         if(r-1 >= 0){
             ret.add(NORTH);
         }
-        if(c+1 <= cols-1){
+        if(c+1 < cols){
             ret.add(EAST);
         }
-        if(r+1 <= rows-1){
+        if(r+1 < rows){
             ret.add(SOUTH);
         }
         if(c-1 >= 0){
@@ -237,12 +339,7 @@ public class Localizer implements EstimatorInterface {
         }
     }
 
-    /*
-     * should trigger one step of the estimation, i.e., true position, sensor reading and
-     * the probability distribution for the position estimate should be updated one step
-     * after the method has been called once.
-     */
-    public void update() {
+    private void moveRobot(){
         ArrayList<Integer> posDirs = possibleDirections(row, col);
 
         if (posDirs.contains(currentHeading)) {
@@ -259,5 +356,22 @@ public class Localizer implements EstimatorInterface {
             currentHeading = posDirs.get(r.nextInt(posDirs.size()));
             moveForward();
         }
+    }
+
+    private void printMat(double[][] mat, int xdim, int ydim){
+        for(int i = 0; i < xdim; i++){
+            for(int j = 0; j<ydim; j++){
+                System.out.print(mat[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+    /*
+     * should trigger one step of the estimation, i.e., true position, sensor reading and
+     * the probability distribution for the position estimate should be updated one step
+     * after the method has been called once.
+     */
+    public void update() {
+        moveRobot();
     }
 }
