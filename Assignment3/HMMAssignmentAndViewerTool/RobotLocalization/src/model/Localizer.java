@@ -3,9 +3,9 @@ package model;
 import control.EstimatorInterface;
 
 import java.lang.reflect.Array;
+import java.util.Collection;
 import java.util.Random;
 import java.util.ArrayList;
-
 
 public class Localizer implements EstimatorInterface {
 
@@ -13,6 +13,8 @@ public class Localizer implements EstimatorInterface {
     private int row;
     private int col;
     private int currentHeading;
+    private int stepCount;
+    private double correctCount;
 
     private int[] currentReading;
 
@@ -24,7 +26,6 @@ public class Localizer implements EstimatorInterface {
     private double[][] transitionMatrix;
     private double[][] observationVectors;
     private double[][] f;
-
 
     private static int[][] offset1 = { { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 }, { 0, 1 }, { 1, -1 }, { 1, 0 }, { 1, 1 } };
     private static int[][] offset2 = { { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 },
@@ -62,7 +63,6 @@ public class Localizer implements EstimatorInterface {
     public int getNumHead() {
         return head;
     }
-
 
     /*
      * makes the transitionMatrix
@@ -145,8 +145,6 @@ public class Localizer implements EstimatorInterface {
         return ret;
     }
 
-
-
     /*
      * returns the probability of finding the robot at r,c given the input reading rr, rc
      * cannot be used for outbounds calculations.
@@ -227,7 +225,6 @@ public class Localizer implements EstimatorInterface {
         }
         return -1;
     }
-
 
     /*
      * returns the probability entry of the sensor matrices O to get reading r corresponding
@@ -323,7 +320,6 @@ public class Localizer implements EstimatorInterface {
         for(int i = 0; i<f.length; i++){
             sum += f[i][0];
         }
-        System.out.println(sum);
         for(int i = 0; i<f.length; i++){
             f[i][0] /= sum;
         }
@@ -336,7 +332,8 @@ public class Localizer implements EstimatorInterface {
     public double getCurrentProb(int x, int y) {
         // f_t+1 = alpha * O_t+1 * T_transp * f_t
         double ret = 0;
-        for(int i = x*head + y; i < x*head + y + head; i++){
+        int startindex = x*cols*head + y*head;
+        for(int i = startindex; i < startindex + head; i++){
             ret += f[i][0];
         }
         return ret;
@@ -391,7 +388,9 @@ public class Localizer implements EstimatorInterface {
                 moveForward();
             } else {
                 Random r = new Random();
-                posDirs.remove(currentHeading);
+                if(posDirs.contains(currentHeading)){
+                    posDirs.remove(Integer.valueOf(currentHeading));
+                }
                 currentHeading = posDirs.get(r.nextInt(posDirs.size()));
                 moveForward();
             }
@@ -434,16 +433,41 @@ public class Localizer implements EstimatorInterface {
         return ret;
     }
 
+
+    private int[] predict(){
+        int[] ret = new int[2];
+        double maxprob = 0;
+        for(int r = 0; r < rows; r++){
+            for(int c = 0; c < rows; c++){
+                double prob = getCurrentProb(r, c);
+                if (prob > maxprob) {
+                    maxprob = prob;
+                    ret[0] = r;
+                    ret[1] = c;
+                }
+            }
+        }
+        return ret;
+    }
+
+    private void evaluate(){
+        int[] pos = getCurrentTrueState();
+        int[] pred = predict();
+        stepCount++;
+        if (pos[0] == pred[0] && pos[1] == pred[1]){
+            correctCount++;
+        }
+        System.out.println(100*(correctCount/stepCount) + "% correct");
+    }
     /*
      * should trigger one step of the estimation, i.e., true position, sensor reading and
      * the probability distribution for the position estimate should be updated one step
      * after the method has been called once.
      */
     public void update() {
-
         moveRobot();
-        normalize_f();
-
         getNext_f();
+        normalize_f();
+        evaluate();
     }
 }
