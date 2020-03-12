@@ -12,11 +12,13 @@ public class Localizer implements EstimatorInterface {
     private int rows, cols, head;
     private int row;
     private int col;
+    private int s_row;
+    private int s_col;
     private int currentHeading;
     private int stepCount;
     private double correctCount;
 
-    private int[] currentReading;
+    private ArrayList<Double> percentages = new ArrayList<>();
 
     private static final int NORTH = 0;
     private static final int EAST = 1;
@@ -240,7 +242,6 @@ public class Localizer implements EstimatorInterface {
         return observationVectors[rX*cols + rY][x*cols + y];
     }
 
-    @Override
     public double getTProb(int x, int y, int h, int nX, int nY, int nH) {
         return transitionMatrix[x*rows*head + y*head + h][nX*rows*head + nY*head + nH];
     }
@@ -257,12 +258,7 @@ public class Localizer implements EstimatorInterface {
         return ret;
     }
 
-    /*
-     * returns the currently available sensor reading obtained for the true position
-     * after the simulation step
-     * returns null if the reading was "nothing" (whatever that stands for in your model)
-     */
-    public int[] getCurrentReading() {
+    private void updateSensor(){
         int[] ret = {0,0};
         int xoffset = 0;
         int yoffset = 0;
@@ -290,9 +286,25 @@ public class Localizer implements EstimatorInterface {
         ret[1] = getCurrentTrueState()[1] + yoffset;
 
         if(ret[0] < 0 || ret[0] >= cols || ret[1] < 0 || ret[1] >= rows){
-            return null;
+            s_row = -1;
+            s_col = -1;
+            return;
         }
-        return ret;
+        s_row = ret[0];
+        s_col = ret[1];
+    }
+
+    /*
+     * returns the currently available sensor reading obtained for the true position
+     * after the simulation step
+     * returns null if the reading was "nothing" (whatever that stands for in your model)
+     */
+    public int[] getCurrentReading() {
+        if(s_row == -1 || s_col == -1){
+            return null;
+        }else{
+            return new int[]{s_row, s_col};
+        }
     }
 
     private void initiate_f(){
@@ -306,7 +318,7 @@ public class Localizer implements EstimatorInterface {
         int index;
         if(read_pos == null){
             index = rows*cols;
-        }else{
+        } else {
             index = read_pos[0]*cols + read_pos[1];
         }
         double[][] O = OVectToMat(index);
@@ -324,6 +336,7 @@ public class Localizer implements EstimatorInterface {
             f[i][0] /= sum;
         }
     }
+
     /*
      * returns the currently estimated (summed) probability for the robot to be in position
      * (x,y) in the grid. The different headings are not considered, as it makes the
@@ -388,9 +401,7 @@ public class Localizer implements EstimatorInterface {
                 moveForward();
             } else {
                 Random r = new Random();
-                if(posDirs.contains(currentHeading)){
-                    posDirs.remove(Integer.valueOf(currentHeading));
-                }
+                posDirs.remove(Integer.valueOf(currentHeading));
                 currentHeading = posDirs.get(r.nextInt(posDirs.size()));
                 moveForward();
             }
@@ -433,7 +444,6 @@ public class Localizer implements EstimatorInterface {
         return ret;
     }
 
-
     private int[] predict(){
         int[] ret = new int[2];
         double maxprob = 0;
@@ -457,8 +467,19 @@ public class Localizer implements EstimatorInterface {
         if (pos[0] == pred[0] && pos[1] == pred[1]){
             correctCount++;
         }
-        System.out.println(100*(correctCount/stepCount) + "% correct");
+        System.out.println(Math.round(100*(correctCount/stepCount) )+ "% correct");
+
+        percentages.add(correctCount/stepCount);
+        /*System.out.print("[");
+        for(int i = 0; i<percentages.size(); i++) {
+            System.out.print(percentages.get(i));
+            System.out.print(", ");
+        }
+        System.out.print("]");
+         */
+
     }
+
     /*
      * should trigger one step of the estimation, i.e., true position, sensor reading and
      * the probability distribution for the position estimate should be updated one step
@@ -466,8 +487,10 @@ public class Localizer implements EstimatorInterface {
      */
     public void update() {
         moveRobot();
+        updateSensor();
         getNext_f();
         normalize_f();
         evaluate();
+
     }
 }

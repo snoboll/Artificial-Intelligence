@@ -11,7 +11,7 @@ def easynorm(x):
 def stoch_desc(x, y, rate, w):
     shuf = list(range(len(x)))
     for epoch in range(1000):
-        random.shuffle(idx)
+        random.shuffle(shuf)
         for i in shuf:
             w[0] = w[0] - rate*2*(w[0] + w[1]*x[i] - y[i])
             w[1] = w[1] - rate*2*x[i]*(w[0] + w[1]*x[i] - y[i])
